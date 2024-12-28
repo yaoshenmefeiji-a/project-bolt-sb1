@@ -6,7 +6,7 @@ import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename="/project-bolt-sb1">
       <App />
     </BrowserRouter>
   </StrictMode>
