@@ -2,6 +2,7 @@ export interface ServerConfig {
   serverSpec: string;
   bandwidthType: 'dedicated' | 'shared';
   bandwidthSpeed: string;
+  trafficLimit: string;
   osType: 'Linux' | 'Windows' | '';
   os: string;
   osVersion: string;
@@ -10,4 +11,6 @@ export interface ServerConfig {
   cpu: string;
   memory: string;
   storage: string;
+  price: number;
+  bandwidthPrice: number;
 }

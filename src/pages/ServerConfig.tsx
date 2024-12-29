@@ -15,6 +15,24 @@ interface Step {
   status: StepStatus;
 }
 
+const SERVER_SPECS_PRICES = {
+  entry: 200,
+  basic: 300,
+  standard: 500,
+  advanced: 800,
+  professional: 1200,
+  ultimate: 2000,
+};
+
+const BANDWIDTH_PRICES = {
+  '10': 50,
+  '20': 90,
+  '50': 200,
+  '100': 350,
+  '200': 600,
+  '500': 1400,
+};
+
 export function ServerConfig() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,7 +46,19 @@ export function ServerConfig() {
     status: index === 1 ? 'current' : index < 1 ? 'completed' : 'upcoming'
   }));
 
+  // 验证必选项是否已填写
+  const isFormValid = () => {
+    if (!serverConfig) return false;
+    return (
+      serverConfig.serverSpec && // 服务器配置
+      serverConfig.bandwidthSpeed && // 带宽
+      serverConfig.osType === 'Linux' && serverConfig.os && // 系统（只允许 Linux）
+      serverConfig.period // 时长
+    );
+  };
+
   const handleNext = () => {
+    if (!isFormValid()) return;
     navigate('/payment', { 
       state: { 
         serverConfig 
@@ -45,7 +75,10 @@ export function ServerConfig() {
   };
 
   const handleConfigChange = (newConfig: IServerConfig) => {
-    setServerConfig(newConfig);
+    setServerConfig({
+      ...newConfig,
+      price: calculatePrice(newConfig)
+    });
   };
 
   // 计算总价
@@ -67,25 +100,13 @@ export function ServerConfig() {
     let price = 0;
     
     // 根据服务器规格计算基础价格
-    switch (config.serverSpec) {
-      case 'entry': price += 200; break;
-      case 'basic': price += 300; break;
-      case 'standard': price += 500; break;
-      case 'advanced': price += 800; break;
-      case 'professional': price += 1200; break;
-      case 'ultimate': price += 2000; break;
+    if (config.serverSpec) {
+      price += SERVER_SPECS_PRICES[config.serverSpec as keyof typeof SERVER_SPECS_PRICES] || 0;
     }
 
     // 根据带宽计算价格
-    if (config.bandwidthType === 'dedicated') {
-      switch (config.bandwidthSpeed) {
-        case '10': price += 50; break;
-        case '20': price += 90; break;
-        case '50': price += 200; break;
-        case '100': price += 350; break;
-        case '200': price += 600; break;
-        case '500': price += 1400; break;
-      }
+    if (config.bandwidthType === 'dedicated' && config.bandwidthSpeed) {
+      price += BANDWIDTH_PRICES[config.bandwidthSpeed as keyof typeof BANDWIDTH_PRICES] || 0;
     }
 
     // 根据时长计算折扣
@@ -143,7 +164,12 @@ export function ServerConfig() {
                 </button>
                 <button
                   onClick={handleNext}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                  disabled={!isFormValid()}
+                  className={`w-full flex items-center justify-center gap-2 px-6 py-3 font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
+                    isFormValid()
+                      ? 'bg-blue-500 text-white hover:bg-blue-600 focus:ring-blue-500'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
                 >
                   下一步：确认订单
                   <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">

@@ -1,269 +1,352 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { StepIndicator } from '../components/StepIndicator';
 import { STEPS } from '../constants/steps';
 import { useResourceManager } from '../hooks/useResourceManager';
-import { ServerConfig as IServerConfig } from '../types/server';
-import { ArrowLeft, Server, Network, Globe2, FileText, DollarSign, Trash2, Edit } from 'lucide-react';
+import { ServerConfig } from '../types/server';
+import { ArrowLeft, Server, Network, Clock, Edit2, Info, Wifi } from 'lucide-react';
+import { SERVER_SPECS } from '../components/ServerConfigForm';
+import { ResourceTimer } from '../components/ResourceTimer';
 
-type StepStatus = 'current' | 'completed' | 'upcoming';
-
-interface Step {
-  title: string;
-  status: StepStatus;
+interface ServerSpec {
+  id: string;
+  name: string;
+  cpu: string;
+  memory: string;
+  disk: string;
+  price: number;
 }
 
 export function OrderConfirm() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [serverConfig, setServerConfig] = useState<IServerConfig | null>(null);
-  const { selectedResources, removeResource } = useResourceManager();
-  const [notes, setNotes] = useState('');
+  const { selectedResources, removeResource, getRemainingTime } = useResourceManager();
+  const serverConfig = location.state?.serverConfig as ServerConfig;
+  const [, forceUpdate] = useState({});
 
+  // 添加定时器以更新倒计时
   useEffect(() => {
-    const state = location.state as { serverConfig?: IServerConfig } | null;
-    if (state?.serverConfig) {
-      setServerConfig(state.serverConfig);
-    }
-  }, [location.state]);
+    const timer = setInterval(() => {
+      forceUpdate({});
+    }, 1000);
 
-  const steps: Step[] = STEPS.map((step, index) => ({
+    return () => clearInterval(timer);
+  }, []);
+
+  const steps = STEPS.map((step, index) => ({
     ...step,
     status: index === 2 ? 'current' : index < 2 ? 'completed' : 'upcoming'
   }));
 
   const handleBack = () => {
-    navigate('/server-config', { state: { serverConfig } });
+    navigate('/server-config', { 
+      state: { 
+        serverConfig: {
+          ...serverConfig,
+          notes: serverConfig.notes
+        } 
+      } 
+    });
   };
 
   const handleSubmit = () => {
-    console.log('提交订单', { selectedResources, serverConfig, notes });
+    // TODO: 处理订单提交
+    console.log('提交订单');
   };
 
-  const calculatePrice = (config: IServerConfig) => {
-    let price = 0;
-    
-    switch (config.serverSpec) {
-      case 'entry': price += 200; break;
-      case 'basic': price += 300; break;
-      case 'standard': price += 500; break;
-      case 'advanced': price += 800; break;
-      case 'professional': price += 1200; break;
-      case 'ultimate': price += 2000; break;
-    }
-
-    if (config.bandwidthType === 'dedicated') {
-      switch (config.bandwidthSpeed) {
-        case '10': price += 50; break;
-        case '20': price += 90; break;
-        case '50': price += 200; break;
-        case '100': price += 350; break;
-        case '200': price += 600; break;
-        case '500': price += 1400; break;
-      }
-    }
-
-    switch (config.period) {
-      case 'quarter': price = price * 3 * 0.95; break;
-      case 'halfYear': price = price * 6 * 0.90; break;
-      case 'year': price = price * 12 * 0.85; break;
-    }
-
-    return Math.round(price);
-  };
-
-  const resourcesTotal = selectedResources.reduce((sum, r) => sum + r.price, 0);
-  const serverTotal = serverConfig ? calculatePrice(serverConfig) : 0;
-  const total = resourcesTotal + serverTotal;
-
-  const handleDeleteResource = (resourceId: string) => {
-    removeResource(resourceId);
-  };
-
-  const handleEditServerConfig = () => {
-    navigate('/server-config', { state: { serverConfig } });
-  };
+  function getBgColor(remainingTime: number) {
+    if (remainingTime <= 60) return 'bg-red-50 text-red-900'; // 1分钟以下
+    if (remainingTime <= 300) return 'bg-amber-50 text-amber-900'; // 5分钟以下
+    return 'bg-blue-50 text-blue-900'; // 正常状态
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
+    <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-[1440px] px-4 py-8">
         <StepIndicator steps={steps} />
         
         <div className="mt-8 max-w-4xl mx-auto space-y-6">
-          {/* IP资源信息 */}
-          <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Globe2 className="w-5 h-5 text-blue-500" />
-                <h3 className="font-medium text-gray-900">IP资源信息</h3>
-              </div>
-              <div className="text-sm font-medium text-blue-600">
-                月度费用：${resourcesTotal}
+          {selectedResources.length === 0 ? (
+            <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+              <div className="flex flex-col items-center justify-center space-y-4">
+                <Network className="h-12 w-12 text-gray-400" />
+                <div className="text-lg font-medium text-gray-900">未选择任何 IP 资源</div>
+                <div className="text-sm text-gray-500">请先选择需要的 IP 资源，再进行服务器配置</div>
+                <button
+                  onClick={() => navigate('/', { 
+                    state: { 
+                      selectedLocation: selectedResources[0]?.location,
+                      selectedType: selectedResources[0]?.type
+                    }
+                  })}
+                  className="mt-4 px-6 py-3 bg-blue-50 text-blue-700 font-medium rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:ring-offset-2 flex items-center justify-center gap-2"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  返回选择资源
+                </button>
               </div>
             </div>
-            <div>
-              <div className="grid grid-cols-5 gap-4 px-6 py-3 border-b border-gray-100 bg-gray-50/50">
-                <div className="text-sm font-medium text-gray-500">位置</div>
-                <div className="text-sm font-medium text-gray-500">类型</div>
-                <div className="text-sm font-medium text-gray-500">子网</div>
-                <div className="text-sm font-medium text-gray-500">ISP</div>
-                <div className="text-sm font-medium text-gray-500 text-right">月度费用</div>
-              </div>
-              <div className="divide-y divide-gray-100">
-                {selectedResources.map(resource => (
-                  <div key={resource.id} className="grid grid-cols-5 gap-4 px-6 py-4 items-center">
-                    <div className="text-sm text-gray-900">{resource.location}</div>
-                    <div className="text-sm text-gray-900">
-                      {resource.type === 'native' ? '原生' : '广播'}
+          ) : (
+            <>
+              {/* IP资源信息 */}
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <div className="px-4 py-4 border-b border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-medium text-gray-900">IP资源订单信息</h3>
+                    <ResourceTimer getRemainingTime={getRemainingTime} />
+                  </div>
+                </div>
+
+                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                  <div className="flex items-center">
+                    <div className="w-[80px] text-center">
+                      <div className="text-sm font-medium text-gray-500">类型</div>
                     </div>
-                    <div className="text-sm text-gray-900">{resource.subnet}</div>
-                    <div className="text-sm text-gray-900">{resource.isp}</div>
-                    <div className="flex items-center justify-end gap-4">
-                      <div className="text-sm font-medium text-blue-600">
-                        ${resource.price}/月
+                    <div className="w-[40px]" />
+                    <div className="w-[180px] text-center">
+                      <div className="text-sm font-medium text-gray-500">目标位置</div>
+                    </div>
+                    <div className="w-[180px]">
+                      <div className="text-sm font-medium text-gray-500">子网</div>
+                    </div>
+                    <div className="w-[120px]">
+                      <div className="text-sm font-medium text-gray-500">As属性</div>
+                    </div>
+                    <div className="w-[100px] text-center">
+                      <div className="text-sm font-medium text-gray-500">价格</div>
+                    </div>
+                    <div className="w-[40px]" />
+                  </div>
+                </div>
+
+                <div className="divide-y divide-gray-100">
+                  {selectedResources.map(resource => (
+                    <div key={resource.id} className="px-4 py-4">
+                      <div className="flex items-center">
+                        <div className="w-[80px] flex justify-center">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            resource.type === 'native' 
+                              ? 'bg-blue-50 text-blue-700'
+                              : 'bg-purple-50 text-purple-700'
+                          }`}>
+                            {resource.type === 'native' ? '原生' : '广播'}
+                          </span>
+                        </div>
+                        <div className="w-[40px]" />
+                        <div className="w-[180px] flex justify-center">
+                          <div className="text-sm font-medium text-gray-900">{resource.location}</div>
+                        </div>
+                        <div className="w-[180px]">
+                          <div className="text-sm font-medium text-gray-900">{resource.subnet}</div>
+                        </div>
+                        <div className="w-[120px]">
+                          <div className="text-sm text-gray-900 flex items-center gap-1.5">
+                            <Wifi className="h-4 w-4 text-green-500" />
+                            <span>ISP</span>
+                          </div>
+                        </div>
+                        <div className="w-[100px] flex justify-center">
+                          <div className="text-sm font-medium text-blue-600">
+                            ¥{resource.price}/月
+                          </div>
+                        </div>
+                        <div className="w-[40px] flex justify-center">
+                          <button
+                            onClick={() => removeResource(resource.id)}
+                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                            title="删除"
+                          >
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
                       </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 服务器配置信息 */}
+              {serverConfig && (
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="px-4 py-4 border-b border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base font-medium text-gray-900">服务器订单信息</h3>
                       <button
-                        onClick={() => handleDeleteResource(resource.id)}
-                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                        title="删除"
+                        onClick={() => navigate('/server-config', { 
+                          state: { 
+                            serverConfig: {
+                              ...serverConfig,
+                              notes: serverConfig.notes
+                            } 
+                          } 
+                        })}
+                        className="text-sm text-gray-500 hover:text-gray-900 flex items-center gap-1"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Edit2 className="h-4 w-4" />
+                        修改配置
                       </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          </section>
 
-          {/* 服务器配置信息 */}
-          {serverConfig && (
-            <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Server className="w-5 h-5 text-blue-500" />
-                  <h3 className="font-medium text-gray-900">服务器配置信息</h3>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="text-sm font-medium text-blue-600">
-                    月度费用：${serverTotal}
+                  <div className="divide-y divide-gray-100">
+                    {/* 基础配置 */}
+                    <div className="px-4 py-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-medium text-gray-900">
+                          {SERVER_SPECS.find(spec => spec.id === serverConfig.serverSpec)?.name || ''}
+                        </span>
+                        <span className="text-sm font-medium text-blue-600">
+                          ¥{serverConfig.price}/{serverConfig.period === 'month' ? '月' : '季度'}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="text-sm text-gray-500">
+                          CPU: {serverConfig.cpu}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          内存: {serverConfig.memory}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          存储: {serverConfig.storage}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          系统: {serverConfig.os} {serverConfig.osVersion}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 带宽配置 */}
+                    <div className="px-4 py-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-medium text-gray-900">带宽配置</span>
+                        <span className="text-sm font-medium text-blue-600">
+                          ¥{Math.round(serverConfig.bandwidthPrice * (
+                            serverConfig.period === 'month' ? 1 :
+                            serverConfig.period === 'quarter' ? 2.85 :
+                            serverConfig.period === 'halfYear' ? 5.4 :
+                            11.4
+                          ))}/{serverConfig.period === 'month' ? '月' : 
+                            serverConfig.period === 'quarter' ? '季度' : 
+                            serverConfig.period === 'halfYear' ? '半年' : '年'}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="text-sm text-gray-500">
+                          带宽类型: {serverConfig.bandwidthType === 'dedicated' ? '独享带宽' : '共享带宽'}
+                        </div>
+                        {serverConfig.bandwidthType === 'dedicated' ? (
+                          <div className="text-sm text-gray-500">
+                            带宽规格: {serverConfig.bandwidthSpeed}Mbps
+                          </div>
+                        ) : (
+                          <>
+                            <div className="text-sm text-gray-500">
+                              带宽规格: {serverConfig.bandwidthSpeed}Mbps
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              流量限制: {serverConfig.trafficLimit}/月
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 备注 */}
+                    {serverConfig.notes && (
+                      <div className="px-4 py-4">
+                        <div className="flex items-center mb-3">
+                          <span className="text-sm font-medium text-gray-900">备注</span>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {serverConfig.notes}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <button
-                    onClick={handleEditServerConfig}
-                    className="p-2 text-gray-400 hover:text-blue-500 transition-colors"
-                    title="修改配置"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
+                </div>
+              )}
+
+              {/* 费用明细 */}
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <h3 className="text-base font-medium text-gray-900">费用明细</h3>
+                </div>
+                <div className="p-4">
+                  <div className="space-y-3">
+                    {selectedResources.length > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-500">IP资源费用</span>
+                        <span className="text-sm font-medium">
+                          ¥{selectedResources.reduce((sum, resource) => sum + resource.price, 0)}/月
+                        </span>
+                      </div>
+                    )}
+                    {serverConfig && (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-500">服务器费用</span>
+                          <span className="text-sm font-medium">
+                            ¥{serverConfig.price}/{serverConfig.period === 'month' ? '月' : 
+                              serverConfig.period === 'quarter' ? '季度' : 
+                              serverConfig.period === 'halfYear' ? '半年' : '年'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-500">带宽费用</span>
+                          <span className="text-sm font-medium">
+                            ¥{serverConfig.bandwidthPrice}/{serverConfig.period === 'month' ? '月' : 
+                              serverConfig.period === 'quarter' ? '季度' : 
+                              serverConfig.period === 'halfYear' ? '半年' : '年'}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    {serverConfig?.period !== 'month' && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-500">折扣优惠</span>
+                        <span className="text-sm font-medium text-red-600">
+                          -¥{Math.round((serverConfig.price + serverConfig.bandwidthPrice) * 0.05)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="pt-3 border-t border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <span className="text-base font-medium text-gray-900">订单总金额</span>
+                        <span className="text-xl font-semibold text-blue-600">
+                          ¥{Math.round(
+                            (serverConfig?.price ?? 0 + (serverConfig?.bandwidthPrice ?? 0)) * 
+                            (serverConfig?.period === 'quarter' ? 2.85 : 1) + 
+                            selectedResources.reduce((sum, resource) => sum + resource.price, 0)
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div>
-                <div className="grid grid-cols-2 gap-4 px-6 py-3 border-b border-gray-100 bg-gray-50/50">
-                  <div className="text-sm font-medium text-gray-500">配置项</div>
-                  <div className="text-sm font-medium text-gray-500">配置值</div>
-                </div>
-                <div className="divide-y divide-gray-100">
-                  <div className="grid grid-cols-2 gap-4 px-6 py-4">
-                    <div className="text-sm text-gray-500">服务器规格</div>
-                    <div className="text-sm text-gray-900">
-                      {serverConfig.serverSpec === 'entry' ? '入门型' :
-                       serverConfig.serverSpec === 'basic' ? '基础型' :
-                       serverConfig.serverSpec === 'standard' ? '标准型' :
-                       serverConfig.serverSpec === 'advanced' ? '进阶型' :
-                       serverConfig.serverSpec === 'professional' ? '专业型' : '旗舰型'}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 px-6 py-4">
-                    <div className="text-sm text-gray-500">操作系统</div>
-                    <div className="text-sm text-gray-900">
-                      {serverConfig.os} {serverConfig.osVersion}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 px-6 py-4">
-                    <div className="text-sm text-gray-500">带宽类型</div>
-                    <div className="text-sm text-gray-900">
-                      {serverConfig.bandwidthType === 'dedicated' ? '独享带宽' : '共享带宽'}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 px-6 py-4">
-                    <div className="text-sm text-gray-500">带宽大小</div>
-                    <div className="text-sm text-gray-900">
-                      {serverConfig.bandwidthSpeed}Mbps
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 px-6 py-4">
-                    <div className="text-sm text-gray-500">付费方式</div>
-                    <div className="text-sm text-gray-900">
-                      {serverConfig.period === 'month' ? '月付' :
-                       serverConfig.period === 'quarter' ? '季付' :
-                       serverConfig.period === 'halfYear' ? '半年付' : '年付'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
+            </>
           )}
 
-          {/* 备注信息 */}
-          <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="border-b border-gray-100 px-6 py-4 flex items-center gap-3">
-              <FileText className="w-5 h-5 text-blue-500" />
-              <h3 className="font-medium text-gray-900">备注信息</h3>
-            </div>
-            <div className="p-6">
-              <textarea
-                rows={4}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 px-4 py-3 text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 bg-gray-50/50"
-                placeholder="请输入备注信息（选填）"
-              />
-            </div>
-          </section>
-
-          {/* 费用信息 */}
-          <section className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="border-b border-gray-100 px-6 py-4 flex items-center gap-3">
-              <DollarSign className="w-5 h-5 text-blue-500" />
-              <h3 className="font-medium text-gray-900">费用总计</h3>
-            </div>
-            <div className="px-6 py-4">
-              <dl className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <dt className="text-sm text-gray-500">IP资源月度费用</dt>
-                  <dd className="text-sm font-medium text-gray-900">${resourcesTotal}</dd>
-                </div>
-                {serverConfig && (
-                  <div className="flex items-center justify-between">
-                    <dt className="text-sm text-gray-500">服务器月度费用</dt>
-                    <dd className="text-sm font-medium text-gray-900">${serverTotal}</dd>
-                  </div>
-                )}
-                <div className="pt-4 flex items-center justify-between border-t border-gray-100">
-                  <dt className="font-medium text-gray-900">月度总费用</dt>
-                  <dd className="text-lg font-semibold text-blue-600">${total}</dd>
-                </div>
-              </dl>
-            </div>
-          </section>
-
           {/* 操作按钮 */}
-          <div className="flex gap-4">
-            <button
-              onClick={handleBack}
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:ring-offset-2 transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              上一步：配置服务器
-            </button>
-            <button
-              onClick={handleSubmit}
-              className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-500 text-white font-medium rounded-xl hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-            >
-              提交订单
-              <Network className="w-5 h-5" />
-            </button>
-          </div>
+          {selectedResources.length > 0 && (
+            <div className="flex gap-4">
+              <button
+                onClick={handleBack}
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:ring-offset-2 flex items-center justify-center gap-2"
+              >
+                <ArrowLeft className="h-5 w-5" />
+                上一步
+              </button>
+              <button
+                onClick={handleSubmit}
+                className="flex-1 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+              >
+                提交订单
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

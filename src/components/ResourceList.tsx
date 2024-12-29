@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Resource } from '../types/resource';
 import { ResourceListItem } from './ResourceListItem';
@@ -27,6 +27,16 @@ export function ResourceList({
     field: null,
     direction: null,
   });
+  const [, forceUpdate] = useState({});
+
+  // 添加定时器以更新倒计时
+  useEffect(() => {
+    const timer = setInterval(() => {
+      forceUpdate({});
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   const handleSort = (field: SortField) => {
     setSortState(current => ({

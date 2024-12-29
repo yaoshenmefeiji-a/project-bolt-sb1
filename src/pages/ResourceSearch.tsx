@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { StepIndicator } from '../components/StepIndicator';
 import { ResourceList } from '../components/ResourceList';
 import { OrderSummary } from '../components/OrderSummary';
@@ -17,11 +17,41 @@ interface Step {
 
 export function ResourceSearch() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { selectedLocation, selectedType } = location.state || {};
   const [currentStep, setCurrentStep] = useState(0);
-  const [selectedCountry, setSelectedCountry] = useState('');
-  const [resourceType, setResourceType] = useState('');
-  const [isSearched, setIsSearched] = useState(false);
+  
+  // 从 localStorage 或 location state 获取初始值
+  const [selectedCountry, setSelectedCountry] = useState(() => {
+    return selectedLocation || localStorage.getItem('lastSelectedCountry') || '';
+  });
+  
+  const [resourceType, setResourceType] = useState(() => {
+    return selectedType || localStorage.getItem('lastResourceType') || '';
+  });
+  
+  const [isSearched, setIsSearched] = useState(() => {
+    return !!(selectedLocation && selectedType) || !!(localStorage.getItem('lastSelectedCountry') && localStorage.getItem('lastResourceType'));
+  });
+
   const [showCustomForm, setShowCustomForm] = useState(false);
+  
+  // 保存搜索条件到 localStorage
+  useEffect(() => {
+    if (selectedCountry) {
+      localStorage.setItem('lastSelectedCountry', selectedCountry);
+    }
+    if (resourceType) {
+      localStorage.setItem('lastResourceType', resourceType);
+    }
+  }, [selectedCountry, resourceType]);
+
+  // 当有之前的选择时，自动触发搜索
+  useEffect(() => {
+    if (selectedCountry && resourceType) {
+      setIsSearched(true);
+    }
+  }, [selectedCountry, resourceType]);
   
   const {
     resources,
