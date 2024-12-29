@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Clock } from 'lucide-react';
 
 interface ResourceTimerProps {
@@ -8,13 +8,17 @@ interface ResourceTimerProps {
 export function ResourceTimer({ getRemainingTime }: ResourceTimerProps) {
   const [remainingTime, setRemainingTime] = useState(getRemainingTime());
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setRemainingTime(getRemainingTime());
-    }, 1000);
-
-    return () => clearInterval(timer);
+  const updateRemainingTime = useCallback(() => {
+    setRemainingTime(getRemainingTime());
   }, [getRemainingTime]);
+
+  useEffect(() => {
+    // 立即更新一次
+    updateRemainingTime();
+    
+    const timer = setInterval(updateRemainingTime, 1000);
+    return () => clearInterval(timer);
+  }, [updateRemainingTime]);
 
   const minutes = Math.floor(remainingTime / 60000);
   const seconds = Math.floor((remainingTime % 60000) / 1000);

@@ -24,7 +24,7 @@ export function OrderSummary({
     <div className="rounded-lg border border-gray-200 bg-white shadow-sm divide-y divide-gray-200">
       {/* 标题部分 */}
       <div className="px-6 py-4">
-        <h2 className="text-lg font-semibold text-gray-900">订单信息</h2>
+        <h2 className="text-lg font-semibold text-gray-900">预订订单信息</h2>
       </div>
 
       {/* IP资源部分 */}

@@ -12,6 +12,7 @@ export interface Resource {
   price: number;
   isp: string;
   purityLevel: number;
+  properties: ResourceProperty[];
 }
 
 export interface SelectedResource extends Resource {

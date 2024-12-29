@@ -14,7 +14,14 @@ const generatePrice = (base: number): number => {
   return base + variance;
 };
 
-export const additionalResources: Resource[] = Array.from({ length: 50 }, (_, index) => {
+// Helper function to generate properties
+const generateProperties = () => [
+  { key: 'speed', value: `${Math.floor(Math.random() * 9 + 1)}Gbps`, icon: 'speed' },
+  { key: 'latency', value: `${Math.floor(Math.random() * 50 + 10)}ms`, icon: 'latency' },
+  { key: 'uptime', value: '99.9%', icon: 'uptime' },
+];
+
+export const additionalResources: Omit<Resource, 'isp' | 'properties'>[] = Array.from({ length: 50 }, (_, index) => {
   // Distribute locations evenly
   const locationIndex = index % 3;
   const location = ['美国', '德国', '日本'][locationIndex];

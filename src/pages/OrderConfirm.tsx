@@ -75,19 +75,9 @@ export function OrderConfirm() {
   const location = useLocation();
   const { selectedResources, removeResource, getRemainingTime } = useResourceManager();
   const serverConfig = location.state?.serverConfig as ServerConfig;
-  const [, forceUpdate] = useState({});
   const [couponCode, setCouponCode] = useState('');
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
-
-  // 添加定时器以更新倒计时
-  useEffect(() => {
-    const timer = setInterval(() => {
-      forceUpdate({});
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   const steps = STEPS.map((step, index) => ({
     ...step,
@@ -231,7 +221,7 @@ export function OrderConfirm() {
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 <div className="px-4 py-4 border-b border-gray-100">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-base font-medium text-gray-900">IP资源订单信息</h3>
+                    <h3 className="text-base font-medium text-gray-900">预订订单IP资源信息</h3>
                     <ResourceTimer getRemainingTime={getRemainingTime} />
                   </div>
                 </div>
@@ -311,7 +301,7 @@ export function OrderConfirm() {
                 <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                   <div className="px-4 py-4 border-b border-gray-100">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-base font-medium text-gray-900">服务器订单信息</h3>
+                      <h3 className="text-base font-medium text-gray-900">预订订单服务器信息</h3>
                       <button
                         onClick={() => navigate('/server-config', { 
                           state: { 
@@ -406,6 +396,43 @@ export function OrderConfirm() {
                   </div>
                 </div>
               )}
+
+              {/* 交付时间 */}
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <h3 className="text-base font-medium text-gray-900">交付时间</h3>
+                </div>
+                <div className="px-6 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">希望交付时间</label>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">建议的最早交付时间</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">最迟交付时间</label>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">可接受的最晚交付时间</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 text-xs text-gray-500 flex items-start gap-1.5">
+                    <Info className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                    <p className="leading-5">
+                      我们将尽可能在您期望的时间内完成交付，如遇特殊情况会提前与您沟通
+                    </p>
+                  </div>
+                </div>
+              </div>
 
               {/* 优惠码/代金券输入框 */}
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">

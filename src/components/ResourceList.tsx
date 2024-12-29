@@ -1,15 +1,16 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { Resource } from '../types/resource';
 import { ResourceListItem } from './ResourceListItem';
 import { ResourceListHeader } from './ResourceListHeader';
 import { EmptyState } from './EmptyState';
 import { SortField, SortState } from '../types/sorting';
-import { useNavigate } from 'react-router-dom';
+import { AddResourceError } from '../hooks/useResourceManager';
+import { toast } from 'sonner';
 
 interface ResourceListProps {
   resources: Resource[];
-  onSelect: (resource: Resource) => void;
+  onSelect: (resource: Resource) => AddResourceError | null;
   showEmptyState: boolean;
   isSearched: boolean;
   onCustomize: () => void;
@@ -22,21 +23,10 @@ export function ResourceList({
   isSearched,
   onCustomize
 }: ResourceListProps) {
-  const navigate = useNavigate();
   const [sortState, setSortState] = useState<SortState>({
     field: null,
     direction: null,
   });
-  const [, forceUpdate] = useState({});
-
-  // 添加定时器以更新倒计时
-  useEffect(() => {
-    const timer = setInterval(() => {
-      forceUpdate({});
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   const handleSort = (field: SortField) => {
     setSortState(current => ({
@@ -50,6 +40,13 @@ export function ResourceList({
               : null
           : 'asc',
     }));
+  };
+
+  const handleSelect = (resource: Resource) => {
+    const error = onSelect(resource);
+    if (error) {
+      toast.error(error.message);
+    }
   };
 
   const sortedResources = useMemo(() => {
@@ -113,7 +110,7 @@ export function ResourceList({
           <ResourceListItem 
             key={resource.id}
             resource={resource}
-            onSelect={onSelect}
+            onSelect={() => handleSelect(resource)}
           />
         ))}
       </div>
