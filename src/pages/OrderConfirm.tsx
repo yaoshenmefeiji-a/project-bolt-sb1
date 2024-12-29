@@ -17,12 +17,68 @@ interface ServerSpec {
   price: number;
 }
 
+interface DiscountCode {
+  type: 'discount';
+  value: number;
+  name: string;
+}
+
+interface Voucher {
+  type: 'voucher';
+  value: number;
+  name: string;
+  minAmount: number;
+}
+
+// 获取付费周期单位
+function getPeriodUnit(period: string) {
+  switch (period) {
+    case 'month':
+      return '月';
+    case 'quarter':
+      return '季度';
+    case 'halfYear':
+      return '半年';
+    case 'year':
+      return '年';
+    default:
+      return '月';
+  }
+}
+
+// 获取折扣后的价格
+function getDiscountedPrice(price: number, period: string) {
+  const multiplier = {
+    month: 1,
+    quarter: 3 * 0.95, // 5% discount
+    halfYear: 6 * 0.9, // 10% discount
+    year: 12 * 0.85 // 15% discount
+  }[period] || 1;
+
+  return Math.round(price * multiplier);
+}
+
+// 优惠码配置
+const DISCOUNT_CODES: Record<string, DiscountCode> = {
+  'NEWYEAR': { type: 'discount', value: 0.88, name: '新年特惠' }, // 88折
+  'SUMMER': { type: 'discount', value: 0.95, name: '夏季特惠' }, // 95折
+};
+
+// 代金券配置
+const VOUCHERS: Record<string, Voucher> = {
+  'GIFT100': { type: 'voucher', value: 100, name: '满1000减100', minAmount: 1000 },
+  'GIFT500': { type: 'voucher', value: 500, name: '满5000减500', minAmount: 5000 },
+};
+
 export function OrderConfirm() {
   const navigate = useNavigate();
   const location = useLocation();
   const { selectedResources, removeResource, getRemainingTime } = useResourceManager();
   const serverConfig = location.state?.serverConfig as ServerConfig;
   const [, forceUpdate] = useState({});
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCode, setAppliedCode] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // 添加定时器以更新倒计时
   useEffect(() => {
@@ -35,7 +91,7 @@ export function OrderConfirm() {
 
   const steps = STEPS.map((step, index) => ({
     ...step,
-    status: index === 2 ? 'current' : index < 2 ? 'completed' : 'upcoming'
+    status: index === 2 ? 'current' as const : index < 2 ? 'completed' as const : 'upcoming' as const
   }));
 
   const handleBack = () => {
@@ -59,6 +115,89 @@ export function OrderConfirm() {
     if (remainingTime <= 300) return 'bg-amber-50 text-amber-900'; // 5分钟以下
     return 'bg-blue-50 text-blue-900'; // 正常状态
   }
+
+  // 验证并应用优惠码
+  const validateCoupon = () => {
+    setErrorMessage('');
+    const code = couponCode.trim().toUpperCase();
+    
+    // 检查是否已经应用了优惠码
+    if (appliedCode) {
+      setErrorMessage('已经使用了优惠码，每个订单只能使用一个优惠码或代金券');
+      return;
+    }
+
+    // 检查优惠码是否存在
+    const discountCode = DISCOUNT_CODES[code];
+    const voucher = VOUCHERS[code];
+
+    if (!discountCode && !voucher) {
+      setErrorMessage('无效的优惠码或代金券');
+      return;
+    }
+
+    // 如果是代金券，检查订单金额是否满足最低要求
+    if (voucher) {
+      const totalAmount = getDiscountedPrice(
+        (serverConfig?.price ?? 0) + (serverConfig?.bandwidthPrice ?? 0),
+        serverConfig?.period ?? 'month'
+      ) + selectedResources.reduce((sum, resource) => sum + resource.price, 0);
+
+      if (totalAmount < voucher.minAmount) {
+        setErrorMessage(`订单金额未满${voucher.minAmount}元，无法使用该代金券`);
+        return;
+      }
+    }
+
+    // 应用优惠码
+    setAppliedCode(code);
+    setCouponCode('');
+  };
+
+  // 计算优惠金额
+  const getDiscountAmount = () => {
+    if (!appliedCode) return 0;
+
+    const totalAmount = getDiscountedPrice(
+      (serverConfig?.price ?? 0) + (serverConfig?.bandwidthPrice ?? 0),
+      serverConfig?.period ?? 'month'
+    ) + selectedResources.reduce((sum, resource) => sum + resource.price, 0);
+
+    const discountCode = DISCOUNT_CODES[appliedCode];
+    if (discountCode) {
+      return Math.round(totalAmount * (1 - discountCode.value));
+    }
+
+    const voucher = VOUCHERS[appliedCode];
+    if (voucher) {
+      return voucher.value;
+    }
+
+    return 0;
+  };
+
+  // 获取优惠码或代金券的显示信息
+  const getAppliedCodeInfo = () => {
+    if (!appliedCode) return null;
+
+    const discountCode = DISCOUNT_CODES[appliedCode];
+    if (discountCode) {
+      return {
+        name: discountCode.name,
+        description: `${Math.round(discountCode.value * 100)}折`
+      };
+    }
+
+    const voucher = VOUCHERS[appliedCode];
+    if (voucher) {
+      return {
+        name: voucher.name,
+        description: `满${voucher.minAmount}减${voucher.value}`
+      };
+    }
+
+    return null;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -268,12 +407,67 @@ export function OrderConfirm() {
                 </div>
               )}
 
+              {/* 优惠码/代金券输入框 */}
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <h3 className="text-base font-medium text-gray-900">优惠码/代金券</h3>
+                </div>
+                <div className="px-6 py-4">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="请输入优惠码或代金券码"
+                      value={couponCode}
+                      onChange={(e) => {
+                        setErrorMessage('');
+                        setCouponCode(e.target.value);
+                      }}
+                      className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <button
+                      className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={validateCoupon}
+                      disabled={!couponCode.trim() || !!appliedCode}
+                    >
+                      使用
+                    </button>
+                  </div>
+                  {errorMessage && (
+                    <div className="mt-2 text-sm text-red-600">
+                      {errorMessage}
+                    </div>
+                  )}
+                  {appliedCode && (
+                    <div className="mt-2 text-sm text-green-600 flex items-center justify-between">
+                      <span>已使用：{getAppliedCodeInfo()?.name} ({getAppliedCodeInfo()?.description})</span>
+                      <button
+                        onClick={() => {
+                          setAppliedCode(null);
+                          setErrorMessage('');
+                        }}
+                        className="text-gray-400 hover:text-gray-500"
+                      >
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  <div className="mt-3 text-xs text-gray-500 flex items-start gap-1.5">
+                    <Info className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                    <p className="leading-5">
+                      每个订单仅可使用一个优惠码或代金券，部分商品可能不参与优惠
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* 费用明细 */}
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100">
                   <h3 className="text-base font-medium text-gray-900">费用明细</h3>
                 </div>
-                <div className="p-4">
+                <div className="px-6 py-4">
                   <div className="space-y-3">
                     {selectedResources.length > 0 && (
                       <div className="flex items-center justify-between">
@@ -303,24 +497,61 @@ export function OrderConfirm() {
                         </div>
                       </>
                     )}
+                    {/* 付费周期折扣 */}
                     {serverConfig?.period !== 'month' && (
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-500">折扣优惠</span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm text-gray-500">付费周期折扣</span>
+                          <span className="text-xs text-gray-400">
+                            ({serverConfig.period === 'quarter' ? '季付95折' : 
+                              serverConfig.period === 'halfYear' ? '半年付9折' : '年付85折'})
+                          </span>
+                        </div>
                         <span className="text-sm font-medium text-red-600">
-                          -¥{Math.round((serverConfig.price + serverConfig.bandwidthPrice) * 0.05)}
+                          -¥{Math.round((serverConfig.price + serverConfig.bandwidthPrice) * 
+                            (serverConfig.period === 'quarter' ? 0.05 : 
+                             serverConfig.period === 'halfYear' ? 0.1 : 0.15) * 
+                            (serverConfig.period === 'quarter' ? 3 : 
+                             serverConfig.period === 'halfYear' ? 6 : 12)
+                          )}
+                        </span>
+                      </div>
+                    )}
+                    {/* 优惠码/代金券折扣 */}
+                    {appliedCode && getDiscountAmount() > 0 && (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          <span className="text-sm text-gray-500">
+                            {DISCOUNT_CODES[appliedCode] ? '折扣码优惠' : '代金券优惠'}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            ({getAppliedCodeInfo()?.description})
+                          </span>
+                        </div>
+                        <span className="text-sm font-medium text-red-600">
+                          -¥{getDiscountAmount()}
                         </span>
                       </div>
                     )}
                     <div className="pt-3 border-t border-gray-100">
                       <div className="flex items-center justify-between">
                         <span className="text-base font-medium text-gray-900">订单总金额</span>
-                        <span className="text-xl font-semibold text-blue-600">
-                          ¥{Math.round(
-                            (serverConfig?.price ?? 0 + (serverConfig?.bandwidthPrice ?? 0)) * 
-                            (serverConfig?.period === 'quarter' ? 2.85 : 1) + 
-                            selectedResources.reduce((sum, resource) => sum + resource.price, 0)
+                        <div className="text-right">
+                          <span className="text-xl font-semibold text-blue-600">
+                            ¥{Math.round(
+                              getDiscountedPrice(
+                                (serverConfig?.price ?? 0) + (serverConfig?.bandwidthPrice ?? 0),
+                                serverConfig?.period ?? 'month'
+                              ) + selectedResources.reduce((sum, resource) => sum + resource.price, 0)
+                              - getDiscountAmount()
+                            )}
+                          </span>
+                          {serverConfig?.period !== 'month' && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              (服务器及带宽按{getPeriodUnit(serverConfig?.period ?? 'month')}付费)
+                            </div>
                           )}
-                        </span>
+                        </div>
                       </div>
                     </div>
                   </div>

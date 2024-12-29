@@ -1,9 +1,9 @@
 import React from 'react';
 import { Check, CircleDot } from 'lucide-react';
 
-interface Step {
+export interface Step {
   title: string;
-  status: 'completed' | 'current' | 'upcoming';
+  status: 'current' | 'completed' | 'upcoming';
 }
 
 interface StepIndicatorProps {
