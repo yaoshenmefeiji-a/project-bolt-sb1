@@ -7,6 +7,9 @@ import { OrderConfirm } from './pages/OrderConfirm';
 import { CustomResource } from './pages/CustomResource';
 import { CustomOrderInfo } from './pages/CustomOrderInfo';
 import { CustomOrderConfirm } from './pages/CustomOrderConfirm';
+import { BYOIPOrder } from './pages/BYOIPOrder';
+import { BYOIPServerConfig } from './pages/BYOIPServerConfig';
+import { BYOIPConfirm } from './pages/BYOIPConfirm';
 
 function App() {
   return (
@@ -18,6 +21,9 @@ function App() {
         <Route path="/custom-resource" element={<CustomResource />} />
         <Route path="/custom-order-info" element={<CustomOrderInfo />} />
         <Route path="/custom-order-confirm" element={<CustomOrderConfirm />} />
+        <Route path="/byo-ip" element={<BYOIPOrder />} />
+        <Route path="/byo-ip/server" element={<BYOIPServerConfig />} />
+        <Route path="/byo-ip/confirm" element={<BYOIPConfirm />} />
       </Routes>
       <Toaster position="top-right" richColors />
     </>
