@@ -23,7 +23,11 @@ type Country = {
   flag: string;
 };
 
-export function CustomResourceForm() {
+interface CustomResourceFormProps {
+  onFormChange?: (formData: any) => void;
+}
+
+export function CustomResourceForm({ onFormChange }: CustomResourceFormProps) {
   // 表单状态
   const [formData, setFormData] = useState({
     country: '',
@@ -39,12 +43,14 @@ export function CustomResourceForm() {
 
   // 处理表单字段变化
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
+    const newFormData = {
+      ...formData,
       [field]: value,
       // 当业务名称不是自定义时，清空自定义URL
       ...(field === 'businessName' && value !== 'custom' ? { customBusinessUrl: '' } : {})
-    }));
+    };
+    setFormData(newFormData);
+    onFormChange?.(newFormData);
   };
 
   return (

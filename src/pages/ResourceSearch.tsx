@@ -115,7 +115,7 @@ export function ResourceSearch() {
       <div className="mx-auto max-w-[1440px] px-4 py-8">
         {/* 步骤指示器只在非首页显示 */}
         {!showSelectionView && (
-          <StepIndicator steps={steps} />
+        <StepIndicator steps={steps} />
         )}
         
         {/* ISP优势展示 - 只在首页显示 */}

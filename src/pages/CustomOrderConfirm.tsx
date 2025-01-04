@@ -46,7 +46,8 @@ export function CustomOrderConfirm() {
   const handleBack = () => {
     navigate('/custom-order-info', {
       state: {
-        customFormData
+        customFormData,
+        serverConfig
       }
     });
   };
@@ -209,49 +210,45 @@ export function CustomOrderConfirm() {
                   <div>
                     <span className="text-sm text-gray-500">操作系统</span>
                     <div className="mt-1 text-sm font-medium text-gray-900">
-                      {serverConfig?.os || '-'}
+                      {serverConfig?.os} {serverConfig?.osVersion}
                     </div>
                   </div>
                   <div>
                     <span className="text-sm text-gray-500">CPU</span>
                     <div className="mt-1 text-sm font-medium text-gray-900">
-                      {serverConfig?.cpu || '-'} 核
+                      {serverConfig?.cpu}
                     </div>
                   </div>
                   <div>
                     <span className="text-sm text-gray-500">内存</span>
                     <div className="mt-1 text-sm font-medium text-gray-900">
-                      {serverConfig?.memory || '-'} GB
+                      {serverConfig?.memory}
                     </div>
                   </div>
                   <div>
-                    <span className="text-sm text-gray-500">系统盘</span>
+                    <span className="text-sm text-gray-500">存储</span>
                     <div className="mt-1 text-sm font-medium text-gray-900">
-                      {serverConfig?.systemDisk || '-'} GB
+                      {serverConfig?.storage}
                     </div>
                   </div>
                   <div>
-                    <span className="text-sm text-gray-500">数据盘</span>
+                    <span className="text-sm text-gray-500">带宽类型</span>
                     <div className="mt-1 text-sm font-medium text-gray-900">
-                      {serverConfig?.dataDisk || '-'} GB
+                      {serverConfig?.bandwidthType === 'dedicated' ? '独享带宽' : '共享带宽'}
                     </div>
                   </div>
                   <div>
-                    <span className="text-sm text-gray-500">带宽</span>
+                    <span className="text-sm text-gray-500">带宽规格</span>
                     <div className="mt-1 text-sm font-medium text-gray-900">
-                      {serverConfig?.bandwidth || '-'} Mbps
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-sm text-gray-500">防护</span>
-                    <div className="mt-1 text-sm font-medium text-gray-900">
-                      {serverConfig?.protection || '-'} Gbps
+                      {serverConfig?.bandwidthSpeed}Mbps
                     </div>
                   </div>
                   <div>
                     <span className="text-sm text-gray-500">付费方式</span>
                     <div className="mt-1 text-sm font-medium text-gray-900">
-                      {serverConfig?.paymentPeriod || '-'}
+                      {serverConfig?.period === 'month' ? '月付' : 
+                       serverConfig?.period === 'quarter' ? '季付' : 
+                       serverConfig?.period === 'halfYear' ? '半年付' : '年付'}
                     </div>
                   </div>
                 </div>
@@ -367,9 +364,36 @@ export function CustomOrderConfirm() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500">服务器月度费用</span>
                   <span className="font-medium">
-                    ¥{serverConfig?.totalPrice || 0}/月
+                    ¥{serverConfig?.price || 0}/月
                   </span>
                 </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">带宽月度费用</span>
+                  <span className="font-medium">
+                    ¥{serverConfig?.bandwidthPrice || 0}/月
+                  </span>
+                </div>
+                {/* 付费周期折扣 */}
+                {serverConfig?.period !== 'month' && (
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-1">
+                      <span className="text-gray-500">付费周期折扣</span>
+                      <span className="text-xs text-gray-400">
+                        ({serverConfig?.period === 'quarter' ? '季付95折' : 
+                          serverConfig?.period === 'halfYear' ? '半年付9折' : '年付85折'})
+                      </span>
+                    </div>
+                    <span className="font-medium text-red-600">
+                      -¥{Math.round((serverConfig?.price + serverConfig?.bandwidthPrice) * 
+                        (serverConfig?.period === 'quarter' ? 0.05 : 
+                         serverConfig?.period === 'halfYear' ? 0.1 : 0.15) * 
+                        (serverConfig?.period === 'quarter' ? 3 : 
+                         serverConfig?.period === 'halfYear' ? 6 : 12)
+                      )}
+                    </span>
+                  </div>
+                )}
+                {/* 优惠码/代金券折扣 */}
                 {appliedCode && (
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-1">
@@ -382,7 +406,7 @@ export function CustomOrderConfirm() {
                     </div>
                     <span className="font-medium text-red-600">
                       -¥{DISCOUNT_CODES[appliedCode] 
-                        ? Math.round((Number(customFormData?.budget || 0) + Number(serverConfig?.totalPrice || 0)) * (1 - DISCOUNT_CODES[appliedCode].value))
+                        ? Math.round((Number(customFormData?.budget || 0) + Number(serverConfig?.price || 0) + Number(serverConfig?.bandwidthPrice || 0)) * (1 - DISCOUNT_CODES[appliedCode].value))
                         : VOUCHERS[appliedCode]?.value || 0}
                     </span>
                   </div>
@@ -392,14 +416,23 @@ export function CustomOrderConfirm() {
                     <span className="text-base font-medium text-gray-900">订单总金额</span>
                     <div className="text-right">
                       <span className="text-xl font-semibold text-blue-600">
-                        ¥{Math.round((Number(customFormData?.budget || 0) + Number(serverConfig?.totalPrice || 0)) * (
-                          appliedCode && DISCOUNT_CODES[appliedCode] 
-                            ? DISCOUNT_CODES[appliedCode].value 
-                            : 1
-                        )) - (appliedCode && VOUCHERS[appliedCode]?.value || 0)}
+                        ¥{Math.round(
+                          ((Number(customFormData?.budget || 0) + 
+                            Number(serverConfig?.price || 0) + 
+                            Number(serverConfig?.bandwidthPrice || 0)) * 
+                            (serverConfig?.period === 'month' ? 1 :
+                             serverConfig?.period === 'quarter' ? 2.85 :
+                             serverConfig?.period === 'halfYear' ? 5.4 :
+                             10.2)) -
+                          (appliedCode && DISCOUNT_CODES[appliedCode] 
+                            ? Math.round((Number(customFormData?.budget || 0) + Number(serverConfig?.price || 0) + Number(serverConfig?.bandwidthPrice || 0)) * (1 - DISCOUNT_CODES[appliedCode].value))
+                            : appliedCode && VOUCHERS[appliedCode]?.value || 0)
+                        )}
                       </span>
                       <div className="text-xs text-gray-500 mt-1">
-                        (按月付费)
+                        {serverConfig?.period === 'month' ? '(按月付费)' :
+                         serverConfig?.period === 'quarter' ? '(按季付费)' :
+                         serverConfig?.period === 'halfYear' ? '(按半年付费)' : '(按年付费)'}
                       </div>
                     </div>
                   </div>

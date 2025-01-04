@@ -20,7 +20,7 @@ export const BANDWIDTH_SPEEDS = [
   { speed: '500', limit: '50TB', price: 1400 },
 ];
 
-const OS_OPTIONS = {
+export const OS_OPTIONS = {
   CentOS: [
     { version: '7.9', description: '企业级稳定版本' },
     { version: '7.8', description: '企业级稳定版本' },
@@ -46,6 +46,13 @@ const OS_OPTIONS = {
     { version: '8.8', description: '企业级版本' },
   ],
 };
+
+export const DURATION_OPTIONS = [
+  { value: 'month', label: '月付', discount: 0 },
+  { value: 'quarter', label: '季付', discount: 5 },
+  { value: 'halfYear', label: '半年付', discount: 10 },
+  { value: 'year', label: '年付', discount: 15 }
+];
 
 interface ServerConfigFormProps {
   onConfigChange: (config: IServerConfig) => void;
@@ -110,13 +117,6 @@ export function ServerConfigForm({ onConfigChange, initialConfig }: ServerConfig
       handleChange('osType', 'Linux');
     }
   }, []);
-
-  const DURATION_OPTIONS = [
-    { value: 'month', label: '月付', discount: 0 },
-    { value: 'quarter', label: '季付', discount: 5 },
-    { value: 'halfYear', label: '半年付', discount: 10 },
-    { value: 'year', label: '年付', discount: 15 }
-  ];
 
   return (
     <div className="space-y-8">
